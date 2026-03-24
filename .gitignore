@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 *.log
+*.backup
+*.bak
+*.bch-backup
+*.pre-*
 .env
 data/
 =======

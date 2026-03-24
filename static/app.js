@@ -2194,10 +2194,12 @@ async function loadBackendInfo() {
     setStratumUrl();
     const node = about.node;
     const sub = node && node.subversion ? node.subversion : 'node unavailable';
-    const bchn = shortenImageRef(about.images && about.images.bchn);
-    const ckpool = shortenImageRef(about.images && about.images.ckpool);
+    let bchn = shortenImageRef(about.images && about.images.bchn);
+    if (!bchn || bchn === '-') {
+      bchn = 'offline';
+    }
     const channel = about.channel ? ` | ${about.channel}` : '';
-    el.textContent = `Backend: ${sub} | ckpool-solo (Stratum v1) | BCHN: ${bchn} | ckpool: ${ckpool}${channel}`;
+    el.textContent = `Backend: ${sub} | GoStrataCore Engine | Fractal: ${bchn}${channel}`;
   } catch {
     el.textContent = 'Backend info unavailable.';
   }
@@ -2341,7 +2343,7 @@ document.getElementById('pool-settings-form').addEventListener('submit', async (
       kicker: 'Pool Settings',
       title: 'Save pool settings?',
       bodyHtml:
-        `Pool settings are applied on app restart because ckpool reads its config on startup.<br><br>
+        `Pool settings are applied on app restart because GoStrataEngine reads its config on startup.<br><br>
          After saving, restart GoFractal from 5tratumOS to apply the payout address and difficulty changes.<br><br>
          In 5tratumOS: open the GoFractal app page and click <span class="font-semibold text-slate-100">Restart</span>.`,
       primaryText: 'Save',

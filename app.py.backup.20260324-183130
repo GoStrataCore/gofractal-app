@@ -63,10 +63,10 @@ APP_VERSION = "0.1.9"
 APP_VERSION_SUFFIX = os.getenv("APP_VERSION_SUFFIX", "").strip()
 DISPLAY_VERSION = f"{APP_VERSION}{APP_VERSION_SUFFIX}"
 
-NODE_RPC_HOST = os.getenv("NODE_RPC_HOST", "fractal")
-NODE_RPC_PORT = int(os.getenv("NODE_RPC_PORT", "28332"))
-NODE_RPC_USER = os.getenv("NODE_RPC_USER", "fractal")
-NODE_RPC_PASS = os.getenv("NODE_RPC_PASS", "")
+BCH_RPC_HOST = os.getenv("BCH_RPC_HOST", "bchn")
+BCH_RPC_PORT = int(os.getenv("BCH_RPC_PORT", "28332"))
+BCH_RPC_USER = os.getenv("BCH_RPC_USER", "bch")
+BCH_RPC_PASS = os.getenv("BCH_RPC_PASS", "")
 
 SAMPLE_INTERVAL_S = int(os.getenv("SERIES_SAMPLE_INTERVAL_S", "30"))
 POOL_CACHE_REFRESH_S = float(os.getenv("POOL_CACHE_REFRESH_S", "15"))
@@ -90,117 +90,6 @@ _POOL_CACHE: dict = {}
 
 _POOL_WORKERS_CACHE_LOCK = threading.Lock()
 _POOL_WORKERS_CACHE: dict = {}
-
-
-ENGINE_PATH = "/var/lib/5tratumos/apps/gostratacore-engine/data/pool/coins/fractal.json"
-
-def get_node_from_ckpool():
-    conf = _read_ckpool_conf()
-    btcd = conf.get("btcd", [{}])[0]
-
-    url = btcd.get("url", "fractal:32123")
-
-    # split host:port
-    if ":" in url:
-        host, port = url.split(":")
-        port = int(port)
-    else:
-        host = url
-        port = 32123
-
-    return {
-        "host": host,
-        "port": port,
-        "username": btcd.get("auth"),
-        "password": btcd.get("pass"),
-        "zmq": conf.get("zmqblock")
-    }
-
-
-def build_engine_config_from_pool(settings):
-    node = get_node_from_ckpool()
-
-    return {
-        "coin": "FB",
-        "enabled": True,
-        "coin_type": "fractal",
-
-        "coin_definition": {
-            "name": "Fractal Bitcoin",
-            "symbol": "FB",
-            "segwit": True,
-            "address": {
-                "bech32": {
-                    "hrp": {
-                        "mainnet": "bc",
-                        "testnet": "tb"
-                    }
-                },
-                "base58": {
-                    "p2pkh": {"mainnet": 0, "testnet": 111},
-                    "p2sh": {"mainnet": 5, "testnet": 196}
-                }
-            }
-        },
-
-	"node": {
-	    "host": node.get("host", "localhost"),
-	    "port": node.get("port", 8332),
-	    "username": node.get("username"),
-	    "password": node.get("password"),
-	    "zmq_enabled": True if node.get("zmq") else False,
-	    "zmq_hashblock": node.get("zmq")
-	},
-
-        "stratum": {
-            "host": "0.0.0.0",
-            "port": 3335,
-            "difficulty": int(settings.get("startdiff") or 8192),
-            "ping_enabled": True,
-            "ping_interval": 30,
-            "accept_suggest_diff": False,
-            "stale_share_grace": 5,
-            "low_diff_share_grace": 5
-        },
-
-        "mining": {
-            "mode": "pool",
-            "address": settings.get("payoutAddress"),
-            "network": "mainnet",
-            "coinbase_text": "GoStrataCore/GoStratumEngine",
-            "extranonce_size": 8
-        },
-
-        "vardiff": {
-            "enabled": True,
-            "min_diff": int(settings.get("mindiff") or 8192),
-            "max_diff": int(settings.get("maxdiff") or 262144),
-            "target_time": 45,
-            "retarget_time": 300,
-            "variance_percent": 20,
-            "float_diff": False,
-            "float_diff_below_one": True,
-            "float_precision": 2,
-            "on_new_block": True
-        },
-
-        "template_refresh_interval": 5,
-
-        # 👇 control flags (Phase 1)
-        "ibd_complete": False,
-        "node_online": False
-    }
-
-def write_engine_config(cfg):
-    import os, json
-    os.makedirs(os.path.dirname(ENGINE_PATH), exist_ok=True)
-
-    tmp = ENGINE_PATH + ".tmp"
-
-    with open(tmp, "w") as f:
-        json.dump(cfg, f, indent=2)
-
-    os.replace(tmp, ENGINE_PATH)
 
 
 def _install_time_s() -> int:
@@ -700,10 +589,10 @@ def _read_static(rel_path: str):
 def _rpc_call(method: str, params=None):
     if params is None:
         params = []
-    url = f"http://{NODE_RPC_HOST}:{NODE_RPC_PORT}/"
+    url = f"http://{BCH_RPC_HOST}:{BCH_RPC_PORT}/"
     payload = json.dumps({"jsonrpc": "1.0", "id": "umbrel", "method": method, "params": params}).encode("utf-8")
 
-    auth = base64.b64encode(f"{NODE_RPC_USER}:{NODE_RPC_PASS}".encode("utf-8")).decode("ascii")
+    auth = base64.b64encode(f"{BCH_RPC_USER}:{BCH_RPC_PASS}".encode("utf-8")).decode("ascii")
     req = urllib.request.Request(
         url,
         data=payload,
@@ -1179,7 +1068,7 @@ def _pool_settings():
     payout_address = conf_addr
     configured = bool(payout_address) and payout_address not in [
         CKPOOL_FALLBACK_DONATION_ADDRESS,
-        "CHANGEME_FB_PAYOUT_ADDRESS",
+        "CHANGEME_BCH_PAYOUT_ADDRESS",
     ]
 
     if not isinstance(validation_warning, str):
@@ -1777,7 +1666,7 @@ def _widget_sync():
         label = "In progress" if s["initialblockdownload"] else "Synchronized"
         return {
             "type": "text-with-progress",
-            "title": "FB sync",
+            "title": "BCH sync",
             "text": f"{pct}%",
             "progressLabel": label,
             "progress": progress,
@@ -1785,7 +1674,7 @@ def _widget_sync():
     except Exception:
         return {
             "type": "text-with-progress",
-            "title": "FB sync",
+            "title": "BCH sync",
             "text": "-",
             "progressLabel": "Unavailable",
             "progress": 0,
@@ -3004,36 +2893,18 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(*_json({"ok": True, "restartRequired": True, "reindexRequired": reindex_required}))
 
         if self.path == "/api/pool/settings":
-            print("DEBUG: /api/pool/settings HIT", flush=True)
             payout_address = str(body.get("payoutAddress") or "")
             mindiff = body.get("mindiff")
             startdiff = body.get("startdiff")
             maxdiff = body.get("maxdiff")
-
             try:
                 settings = _update_pool_settings_full(
-                     payout_address=payout_address,
-                     mindiff=mindiff,
-                     startdiff=startdiff,
-                     maxdiff=maxdiff,
+                    payout_address=payout_address,
+                    mindiff=mindiff,
+                    startdiff=startdiff,
+                    maxdiff=maxdiff,
                 )
-
-                cfg = build_engine_config_from_pool({
-                    "payoutAddress": payout_address,
-                    "mindiff": mindiff,
-                    "startdiff": startdiff,
-                    "maxdiff": maxdiff
-                })
-
-                print("DEBUG: Writing engine config", flush=True)
-                write_engine_config(cfg)
-
-                return self._send(*_json({
-                    "ok": True,
-                    "settings": settings,
-                    "restartRequired": True
-                }))
-
+                return self._send(*_json({"ok": True, "settings": settings, "restartRequired": True}))
             except Exception as e:
                 return self._send(*_json({"error": str(e)}, status=400))
 
@@ -3239,4 +3110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
