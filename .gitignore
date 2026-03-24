@@ -9,6 +9,13 @@ __pycache__/
 .env
 data/
 =======
+
+# Backup files
+*.backup
+*.backup.*
+*.bak
+*.pre-*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
